@@ -1,40 +1,34 @@
 FROM archlinux:base-devel
 
-# Update packages and install git
-RUN pacman --noconfirm -Syu git
-
-# Add user for non-root operations
 ENV USERNAME=getnative
 ENV HOME=/home/${USERNAME}
-RUN useradd --no-log-init -mG wheel ${USERNAME}
 
-# Do not ask for password when using sudo with this newly created user
-RUN echo '%wheel ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+# Update packages and install git
+RUN pacman --noconfirm -Syu git \
+ # Add user for non-root operations
+ && useradd --no-log-init -mG wheel ${USERNAME} \
+ # Do not ask for password when using sudo with this newly created user
+ && echo '%wheel ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers \
+ # Install getnative dependencies from Arch repositories
+ && pacman --noconfirm -S --asdep vapoursynth ffms2 ffmpeg pipewire-media-session pipewire-jack tesseract-data-eng
 
 # Install paru as AUR helper
 USER ${USERNAME}
 WORKDIR ${HOME}
-RUN git clone https://aur.archlinux.org/paru-bin.git
-WORKDIR paru-bin
-RUN makepkg --noconfirm -si
-WORKDIR ..
-RUN rm -r paru-bin
-USER root
-
-# Install dependencies from Arch repositories
-RUN pacman --noconfirm -S --asdep vapoursynth ffms2 ffmpeg pipewire-media-session pipewire-jack tesseract-data-eng
-
-# Install dependencies from AUR and install getnative
-USER ${USERNAME}
-RUN paru --noconfirm -S vapoursynth-plugin-descale-git
-RUN paru --noconfirm -S vapoursynth-tools-getnative-git
-RUN paru --noconfirm -D --asdep git vapoursynth-plugin-descale-git
-USER root
+RUN git clone https://aur.archlinux.org/paru-bin.git \
+ && cd paru-bin \
+ && makepkg --noconfirm -si \
+ # Install dependencies from AUR and install getnative
+ && paru --noconfirm -S vapoursynth-plugin-descale-git \
+ && paru --noconfirm -S vapoursynth-tools-getnative-git \
+ && paru --noconfirm -D --asdep git vapoursynth-plugin-descale-git
 
 # Clean things up
-RUN rm -rf ${HOME}/.cache/
-RUN pacman --noconfirm -Rns $(pacman -Qdtq)
-RUN rm -rf /var/cache/pacman/pkg/*
+USER root
+RUN rm -rf ${HOME}/paru-bin \
+ && rm -rf ${HOME}/.cache/ \
+ && pacman --noconfirm -Rns $(pacman -Qdtq) \
+ && rm -rf /var/cache/pacman/pkg/*
 
 # Entrypoint
 ENV DATA_DIR=/data
